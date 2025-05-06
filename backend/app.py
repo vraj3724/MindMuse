@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 from ai_service import AIDiaryService
@@ -11,6 +11,7 @@ from functools import wraps
 from bson import ObjectId
 import logging
 from transformers import pipeline
+from werkzeug.security import generate_password_hash
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -168,28 +169,57 @@ def token_required(f):
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.get_json()
+    
+    if not data:
+        return jsonify({'message': 'No data received'}), 400
+
+    if not data.get('name') or not data.get('email') or not data.get('password'):
+        return jsonify({'message': 'All fields are required'}), 400
+
     if db.users.find_one({'email': data['email']}):
         return jsonify({'message': 'User already exists'}), 400
+
+    hashed_password = generate_password_hash(data['password'], method='pbkdf2:sha256', salt_length=16)
 
     user = {
         'name': data['name'],
         'email': data['email'],
-        'password': data['password']
+        'password': hashed_password
     }
+
     result = db.users.insert_one(user)
-    token = jwt.encode({'user_id': str(result.inserted_id)}, SECRET_KEY, algorithm='HS256')
+
+    token = jwt.encode({
+        'user_id': str(result.inserted_id),
+        'exp': datetime.utcnow() + timedelta(minutes=30)
+    }, SECRET_KEY, algorithm='HS256')
+
     return jsonify({'token': token, 'message': 'User created successfully'}), 201
+    
 
 # Login user
+from werkzeug.security import check_password_hash
+from datetime import datetime, timedelta
+
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     data = request.get_json()
+
+    if not data or not data.get('email') or not data.get('password'):
+        return jsonify({'message': 'Email and password are required'}), 400
+
     user = db.users.find_one({'email': data['email']})
-    if not user or user['password'] != data['password']:
+    if not user or not check_password_hash(user['password'], data['password']):
         return jsonify({'message': 'Invalid credentials'}), 401
 
-    token = jwt.encode({'user_id': str(user['_id'])}, SECRET_KEY, algorithm='HS256')
+    # Set JWT to expire in 30 minutes
+    token = jwt.encode({
+        'user_id': str(user['_id']),
+        'exp': datetime.utcnow() + timedelta(minutes=30)
+    }, SECRET_KEY, algorithm='HS256')
+
     return jsonify({'token': token})
+
 
 # Create diary entry
 @app.route('/api/entries', methods=['POST'])
@@ -302,6 +332,5 @@ def interactive_feedback():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    import os
-    port = int(os.environ.get("PORT", 5000))
-    app.run(debug=False, host="0.0.0.0", port=port)
+    print("Starting Flask server on http://localhost:5000")
+    app.run(debug=True, port=5000)
