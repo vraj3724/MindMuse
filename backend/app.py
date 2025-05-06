@@ -331,6 +331,11 @@ def interactive_feedback():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/')
+def home():
+    return "MindMuse backend is running!"
+
+
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))  # use Render's assigned port or 5000 locally
