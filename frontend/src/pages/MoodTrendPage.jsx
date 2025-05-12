@@ -19,7 +19,6 @@ export default function MoodTrendPage() {
           Tracking your emotional journey one entry at a time.
         </p>
       </div>
-
       <MoodTrendChart entries={entries} />
     </div>
   );

@@ -12,6 +12,8 @@ from bson import ObjectId
 import logging
 from transformers import pipeline
 from werkzeug.security import generate_password_hash
+from encryption_util import encrypt_text, decrypt_text
+
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -87,7 +89,7 @@ LABEL_MAPPING = {
 def map_emotion_to_mood(emotion):
     positive_emotions = {
         "joy", "love", "gratitude", "excitement", "pride", "optimism",
-        "admiration", "approval", "relief", "amusement", "caring"
+        "admiration", "approval", "relief", "caring"
     }
     negative_emotions = {
         "sadness", "grief", "anger", "remorse", "disappointment", "disgust",
@@ -104,11 +106,10 @@ def analyze_emotion(text):
     try:
         emotions = emotion_analyzer(text)[0]
         sorted_emotions = sorted(emotions, key=lambda x: x['score'], reverse=True)
-        top_emotion = sorted_emotions[0]
 
+        top_emotion = sorted_emotions[0]
         primary_label = top_emotion['label']
         primary_emotion = LABEL_MAPPING.get(primary_label, "neutral")
-        mood = map_emotion_to_mood(primary_emotion)
         confidence = float(top_emotion['score'])
 
         secondary_emotions = [
@@ -119,12 +120,30 @@ def analyze_emotion(text):
             for e in sorted_emotions[:3]
         ]
 
+        mood = map_emotion_to_mood(primary_emotion)
+
+        depressive_keywords = [
+            "i'm tired", "i don’t feel", "nothing matters", "empty", "hollow",
+            "worthless", "disappear", "i feel alone", "i'm lost", "numb",
+            "breakup", "he left", "she left", "i miss them", "we ended", "relationship"
+        ]
+
+        # Check if sadness is in top 3 and close to top score
+        sadness_score = next((e["score"] for e in sorted_emotions if LABEL_MAPPING.get(e["label"]) == "sadness"), 0)
+        if (primary_emotion != "sadness") and (
+            sadness_score > 0.2 and (confidence - sadness_score) < 0.1 or
+            any(kw in text.lower() for kw in depressive_keywords)
+        ):
+            primary_emotion = "sadness"
+            mood = "negative"
+
         return {
             'mood': mood,
             'confidence': confidence,
             'primary_emotion': primary_emotion,
             'secondary_emotions': secondary_emotions
         }
+
     except Exception as e:
         logger.error(f"Error in emotion analysis: {str(e)}")
         return {
@@ -244,8 +263,8 @@ def create_entry(current_user):
 
         entry = {
             'user_id': str(current_user['_id']),
-            'title': title,
-            'content': content,
+            'title': encrypt_text(title),
+            'content': encrypt_text(content),
             'mood': emotion_analysis['mood'],
             'confidence': emotion_analysis['confidence'],
             'primary_emotion': emotion_analysis['primary_emotion'],
@@ -270,10 +289,13 @@ def get_entries(current_user):
         entries = list(db.entries.find({'user_id': str(current_user['_id'])}))
         for entry in entries:
             entry['_id'] = str(entry['_id'])
+            entry['title'] = decrypt_text(entry['title'])
+            entry['content'] = decrypt_text(entry['content'])
         return jsonify(entries)
     except Exception as e:
         logger.error(f"Error getting entries: {str(e)}")
         return jsonify({'message': 'Error getting entries', 'error': str(e)}), 500
+
 
 # Get single entry
 @app.route('/api/entries/<entry_id>', methods=['GET'])
@@ -284,10 +306,13 @@ def get_entry(current_user, entry_id):
         if not entry:
             return jsonify({'message': 'Entry not found'}), 404
         entry['_id'] = str(entry['_id'])
+        entry['title'] = decrypt_text(entry['title'])
+        entry['content'] = decrypt_text(entry['content'])
         return jsonify(entry)
     except Exception as e:
         logger.error(f"Error getting entry: {str(e)}")
         return jsonify({'message': 'Error getting entry', 'error': str(e)}), 500
+
 
 # Delete an entry
 @app.route('/api/entries/<entry_id>', methods=['DELETE'])
@@ -302,17 +327,17 @@ def delete_entry(current_user, entry_id):
         logger.error(f"Error deleting entry: {str(e)}")
         return jsonify({'message': 'Error deleting entry', 'error': str(e)}), 500
 
-# Get insights
-@app.route('/api/insights', methods=['GET'])
-@token_required
-def get_insights(current_user):
-    try:
-        entries = list(db.entries.find({'user_id': str(current_user['_id'])}))
-        insights = ai_service.generate_insights(entries)
-        return jsonify(insights)
-    except Exception as e:
-        logger.error(f"Error getting insights: {str(e)}")
-        return jsonify({'message': 'Error getting insights', 'error': str(e)}), 500
+# # Get insights
+# @app.route('/api/insights', methods=['GET'])
+# @token_required
+# def get_insights(current_user):
+#     try:
+#         entries = list(db.entries.find({'user_id': str(current_user['_id'])}))
+#         insights = ai_service.generate_insights(entries)
+#         return jsonify(insights)
+#     except Exception as e:
+#         logger.error(f"Error getting insights: {str(e)}")
+#         return jsonify({'message': 'Error getting insights', 'error': str(e)}), 500
 
 
 @app.route('/api/ai/interactive-feedback', methods=['POST'])
@@ -331,12 +356,6 @@ def interactive_feedback():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/')
-def home():
-    return "MindMuse backend is running!"
-
-
 if __name__ == '__main__':
-    import os
-    port = int(os.environ.get('PORT', 5000))  # use Render's assigned port or 5000 locally
-    app.run(host='0.0.0.0', port=port)
+    print("Starting Flask server on http://localhost:5000")
+    app.run(debug=True, port=5000)

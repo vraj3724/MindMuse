@@ -4,6 +4,9 @@ import { motion } from "framer-motion";
 import { FaPenNib, FaSmile, FaRobot, FaTwitter, FaGithub, FaHeart } from "react-icons/fa";
 import Navbar from "../components/Navbar";
 import bgImage from "../images/photo1.png";
+import landing1 from "../images/landing1.jpg";
+import landing2 from "../images/landing2.jpg";
+import landing3 from "../images/landing3.jpg";
 import LoaderOverlay from "../components/LoaderOverlay";
 
 export default function LandingPage() {
@@ -13,9 +16,15 @@ export default function LandingPage() {
   const handleStart = () => {
     setLoading(true);
     setTimeout(() => {
-      navigate("/auth");
+      const token = localStorage.getItem("token");
+      if (token) {
+        navigate("/dashboard");
+      } else {
+        navigate("/auth");
+      }
     }, 1200);
   };
+  
 
   const howItWorks = [
     { icon: <FaPenNib size={24} />, label: "Write Daily" },
@@ -93,33 +102,54 @@ export default function LandingPage() {
       </div>
 
       {/* Section 3: Features */}
-      <div className="py-20 px-6 md:px-20 bg-gradient-to-br from-[#fff7f0] to-[#ffffff] text-center border-t border-gray-100">
-        <motion.h2
-          className="text-3xl md:text-4xl font-bold mb-10 text-[#512843]"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          transition={{ duration: 1 }}
-        >
-          Features You'll Love
-        </motion.h2>
-        <div className="grid md:grid-cols-3 gap-10">
-          {["Mood Calendar", "Smart Recommendations", "Privacy First"].map((title, i) => (
-            <motion.div
-              key={i}
-              className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition"
-              whileHover={{ scale: 1.05 }}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.2 }}
-            >
-              <div className="w-20 h-20 bg-gray-100 rounded-lg mx-auto mb-4 flex items-center justify-center text-gray-500">
-                Image
-              </div>
-              <h3 className="text-xl font-semibold text-[#512843]">{title}</h3>
-            </motion.div>
-          ))}
+<div className="py-20 px-6 md:px-20 bg-gradient-to-br from-[#fff7f0] to-[#ffffff] text-center border-t border-gray-100">
+  <motion.h2
+    className="text-3xl md:text-4xl font-bold mb-10 text-[#512843]"
+    initial={{ opacity: 0 }}
+    whileInView={{ opacity: 1 }}
+    transition={{ duration: 1 }}
+  >
+    Features You'll Love
+  </motion.h2>
+
+  <div className="grid md:grid-cols-3 gap-10">
+    {[
+      {
+        title: "Mood Calendar",
+        image: landing1,
+      },
+      {
+        title: "Smart Recommendations",
+        image: landing2,
+      },
+      {
+        title: "Privacy First",
+        image: landing3,
+      },
+    ].map((feature, i) => (
+      <motion.div
+        key={i}
+        className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition"
+        whileHover={{ scale: 1.05 }}
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ delay: i * 0.2 }}
+      >
+        <div className="w-20 h-20 bg-gray-100 rounded-lg mx-auto mb-4 flex items-center justify-center overflow-hidden">
+          <img
+            src={feature.image}
+            alt={feature.title}
+            className="w-16 h-16 object-contain"
+            loading="lazy"
+          />
         </div>
-      </div>
+        <h3 className="text-xl font-semibold text-[#512843]">
+          {feature.title}
+        </h3>
+      </motion.div>
+    ))}
+  </div>
+</div>
 
       {/* Section 4: CTA */}
       <div className="py-24 px-6 md:px-20 bg-gradient-to-r from-[#d72638] to-[#ff9500] text-white text-center">
@@ -145,15 +175,12 @@ export default function LandingPage() {
       {/* Section 5: Footer */}
       <footer className="bg-white border-t border-gray-200 py-8 px-6 md:px-20 text-center text-sm text-gray-600">
         <div className="mb-4 flex justify-center gap-6">
-          <a href="https://twitter.com" target="_blank" rel="noreferrer" className="hover:text-[#ff9500] transition">
-            <FaTwitter size={20} />
-          </a>
-          <a href="https://github.com" target="_blank" rel="noreferrer" className="hover:text-[#ff9500] transition">
+          <a href="https://github.com/vraj3724/ai-diary-MindMuse-" target="_blank" rel="noreferrer" className="hover:text-[#ff9500] transition">
             <FaGithub size={20} />
           </a>
         </div>
         <p>
-          Made with <FaHeart className="inline text-[#d72638]" /> by MindMuse Team © {new Date().getFullYear()}
+          Made by Vraj Patel {new Date().getFullYear()}
         </p>
       </footer>
     </div>
